@@ -1,5 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
-import {prompt} from 'enquirer'
+import pkg from 'enquirer'
+const {prompt} = pkg
 import {loadConfig, saveConfig} from '../utils/config.js'
 
 export default class SetLlmKey extends Command {

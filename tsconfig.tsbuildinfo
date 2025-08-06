@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/commands/ask.ts","./src/commands/connect.ts","./src/commands/schema.ts","./src/commands/set-llm-key.ts","./src/commands/sql.ts","./src/config/config.ts","./src/config/db-url.ts","./src/config/gemini-key.ts"],"version":"5.9.2"}
+{"root":["./src/index.ts","./src/commands/ask.ts","./src/commands/connect.ts","./src/commands/schema.ts","./src/commands/set-llm-key.ts","./src/commands/sql.ts","./src/utils/config.ts"],"version":"5.9.2"}
