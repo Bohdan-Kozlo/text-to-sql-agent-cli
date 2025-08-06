@@ -13,7 +13,7 @@
     "@oclif/core": "^4",
     "@oclif/plugin-help": "^6",
     "@oclif/plugin-plugins": "^5",
-    "dotenv": "^17.2.1",
+    "enquirer": "^2.4.1",
     "mssql": "^11.0.1",
     "mysql": "^2.18.1",
     "pg": "^8.16.3"

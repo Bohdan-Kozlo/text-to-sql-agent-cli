@@ -1,27 +1,60 @@
 import {Args, Command, Flags} from '@oclif/core'
+import {prompt} from 'enquirer'
+import {loadConfig, saveConfig} from '../utils/config.js'
 
 export default class Connect extends Command {
-  static override args = {
-    file: Args.string({description: 'file to read'}),
-  }
-  static override description = 'describe the command here'
+  static override description = 'Set your database connection URL'
   static override examples = [
     '<%= config.bin %> <%= command.id %>',
+    '<%= config.bin %> <%= command.id %> --url "postgresql://user:password@localhost:5432/mydb"',
   ]
+
   static override flags = {
-    // flag with no value (-f, --force)
-    force: Flags.boolean({char: 'f'}),
-    // flag with a value (-n, --name=VALUE)
-    name: Flags.string({char: 'n', description: 'name to print'}),
+    url: Flags.string({char: 'u', description: 'Database URL'}),
   }
 
   public async run(): Promise<void> {
-    const {args, flags} = await this.parse(Connect)
+    const {flags} = await this.parse(Connect)
+    let databaseUrl = flags.url
 
-    const name = flags.name ?? 'world'
-    this.log(`hello ${name} from B:\\My Personal Projects\\text-to-sql-agent-cli\\src\\commands\\connect.ts`)
-    if (args.file && flags.force) {
-      this.log(`you input --force and --file: ${args.file}`)
+    if (!databaseUrl) {
+      const currentConfig = loadConfig()
+      if (currentConfig.DATABASE_URL) {
+        this.log(`Current database URL: ${currentConfig.DATABASE_URL}`)
+      }
+
+      const response = await prompt<{url: string}>({
+        type: 'input',
+        name: 'url',
+        message: 'Enter your database URL:',
+        initial: currentConfig.DATABASE_URL || '',
+        validate: (value: string) => {
+          if (!value.trim()) {
+            return 'Database URL cannot be empty'
+          }
+          if (!value.includes('://')) {
+            return 'Please enter a valid database URL (e.g., postgresql://user:password@localhost:5432/mydb)'
+          }
+          return true
+        },
+      })
+
+      databaseUrl = response.url
+    }
+
+    if (!databaseUrl) {
+      this.error('Database URL is required')
+    }
+
+    try {
+      const config = loadConfig()
+      config.DATABASE_URL = databaseUrl.trim()
+      saveConfig(config)
+
+      this.log('✅ Database URL saved successfully!')
+      this.log(`Database URL: ${databaseUrl}`)
+    } catch (error) {
+      this.error('❌ Failed to save database URL', {exit: 1})
     }
   }
 }
