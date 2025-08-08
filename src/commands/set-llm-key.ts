@@ -1,4 +1,4 @@
-import {Args, Command, Flags} from '@oclif/core'
+import {Command, Flags} from '@oclif/core'
 import pkg from 'enquirer'
 const {prompt} = pkg
 import {loadConfig, saveConfig} from '../utils/config.js'
