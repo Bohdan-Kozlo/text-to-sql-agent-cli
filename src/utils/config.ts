@@ -1,10 +1,10 @@
-import path from 'path'
-import os from 'os'
-import fs from 'fs'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 interface Config {
-  GEMINI_API_KEY?: string
   DATABASE_URL?: string
+  GEMINI_API_KEY?: string
 }
 
 export function getConfigPath(): string {
@@ -18,7 +18,7 @@ export function loadConfig(): Config {
     return {}
   }
 
-  const content = fs.readFileSync(configPath, 'utf-8')
+  const content = fs.readFileSync(configPath, 'utf8')
   const config: Config = {}
 
   const geminiMatch = content.match(/GEMINI_API_KEY=(.*)/)
@@ -49,7 +49,7 @@ export function saveConfig(config: Config): void {
 
   try {
     fs.writeFileSync(configPath, content)
-  } catch (error) {
+  } catch {
     throw new Error('Failed to save configuration file')
   }
 }

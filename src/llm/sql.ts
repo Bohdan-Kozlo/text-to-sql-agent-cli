@@ -1,12 +1,13 @@
 import {ChatGoogleGenerativeAI} from '@langchain/google-genai'
-import {TableInfo} from '../database/types.js'
 import {z} from 'zod'
+
+import {TableInfo} from '../database/types.js'
 
 export async function generateSql(
   model: ChatGoogleGenerativeAI,
   question: string,
   schema: TableInfo[],
-  dialect: 'postgresql' | 'mysql' | 'mssql',
+  dialect: 'mssql' | 'mysql' | 'postgresql',
 ): Promise<string> {
   const schemaText = schema
     .map(
@@ -32,6 +33,6 @@ export async function generateSql(
 
   const instructions = `Generate exactly one ${dialect} SQL SELECT statement (read-only) answering the question. Use only provided schema. No data modification. Avoid guessing nonexistent tables/columns.`
   const prompt = `${instructions}\n\nSchema:\n${schemaText}\n\nQuestion: ${question}`
-  const result: any = await structured.invoke([{role: 'user', content: prompt}])
+  const result = await structured.invoke([{content: prompt, role: 'user'}]) as {sql: string}
   return result.sql.trim()
 }

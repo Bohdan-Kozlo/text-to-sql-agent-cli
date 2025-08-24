@@ -1,13 +1,15 @@
 import {Command, Flags} from '@oclif/core'
 import pkg from 'enquirer'
-const {prompt} = pkg
-import {getDbUrl} from '../utils/config.js'
+
 import {connectToDatabase, getDatabaseTypeFromUrl} from '../database/index.js'
+import {generateAnswerWithCount} from '../llm/answer.js'
 import {getGeminiModel} from '../llm/client.js'
 import {generateSql} from '../llm/sql.js'
-import {generateAnswer} from '../llm/answer.js'
 import {validateSql} from '../llm/validate.js'
+import {getDbUrl} from '../utils/config.js'
 import {formatTable} from '../utils/table.js'
+
+const {prompt} = pkg
 
 export default class Ask extends Command {
   static override description = 'Ask a question about your database; LLM generates SQL, executes it, and answers.'
@@ -25,13 +27,14 @@ export default class Ask extends Command {
 
     if (!question) {
       const response = await prompt<{question: string}>({
-        type: 'input',
-        name: 'question',
         message: 'What would you like to know about your database?',
-        validate: (value: string) => {
+        name: 'question',
+        type: 'input',
+        validate(value: string) {
           if (!value.trim()) {
             return 'Question cannot be empty'
           }
+
           return true
         },
       })
@@ -65,14 +68,17 @@ export default class Ask extends Command {
       if (!sql) {
         this.error('LLM did not return SQL query')
       }
+
       this.log('SQL generated:')
       this.log(sql)
 
       this.log('\nValidating SQL...')
       const validation = await validateSql(model, question, sql, dbType)
+
       if (!validation.valid) {
         this.error(`Generated SQL failed validation: ${validation.reason}`)
       }
+
       if (validation.safeSql && validation.safeSql !== sql) {
         this.log('Validator adjusted SQL:')
         sql = validation.safeSql
@@ -87,7 +93,7 @@ export default class Ask extends Command {
       this.log(formatTable(result.rows.slice(0, 20)))
 
       this.log('\nGenerating final answer...')
-      const answer = await generateAnswer(model, question, sql, result.rows, result.rowCount)
+      const answer = await generateAnswerWithCount(model, question, sql, result.rows, result.rowCount)
 
       this.log('\nAnswer:')
       this.log(answer)

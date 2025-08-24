@@ -1,4 +1,4 @@
-export function formatTable(rows: any[]): string {
+export function formatTable(rows: Record<string, unknown>[]): string {
   if (!rows || rows.length === 0) return '(no rows)'
   const columns = Object.keys(rows[0])
   const widths = columns.map((col) =>

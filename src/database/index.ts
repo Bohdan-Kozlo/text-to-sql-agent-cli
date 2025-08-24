@@ -1,20 +1,27 @@
-import {DbAdapter, DatabaseType, DbConnectionConfig} from './types.js'
-import {PostgresAdapter} from './adapters/postgres.js'
-import {MySQLAdapter} from './adapters/mysql.js'
 import {MSSQLAdapter} from './adapters/mssql.js'
+import {MySQLAdapter} from './adapters/mysql.js'
+import {PostgresAdapter} from './adapters/postgres.js'
+import {DatabaseType, DbAdapter, DbConnectionConfig} from './types.js'
 
 export function createDatabaseAdapter(databaseUrl: string): DbAdapter {
   const dbType = getDatabaseTypeFromUrl(databaseUrl)
 
   switch (dbType) {
-    case 'postgresql':
-      return new PostgresAdapter()
-    case 'mysql':
-      return new MySQLAdapter()
-    case 'mssql':
+    case 'mssql': {
       return new MSSQLAdapter()
-    default:
+    }
+
+    case 'mysql': {
+      return new MySQLAdapter()
+    }
+
+    case 'postgresql': {
+      return new PostgresAdapter()
+    }
+
+    default: {
       throw new Error(`Unsupported database type: ${dbType}`)
+    }
   }
 }
 
@@ -22,16 +29,23 @@ export function getDatabaseTypeFromUrl(url: string): DatabaseType {
   const protocol = url.split('://')[0].toLowerCase()
 
   switch (protocol) {
-    case 'postgresql':
-    case 'postgres':
-      return 'postgresql'
-    case 'mysql':
-      return 'mysql'
     case 'mssql':
-    case 'sqlserver':
+    case 'sqlserver': {
       return 'mssql'
-    default:
+    }
+
+    case 'mysql': {
+      return 'mysql'
+    }
+
+    case 'postgres':
+    case 'postgresql': {
+      return 'postgresql'
+    }
+
+    default: {
       throw new Error(`Cannot determine database type from URL: ${url}`)
+    }
   }
 }
 
@@ -40,28 +54,35 @@ export function parseDatabaseUrl(url: string): DbConnectionConfig {
     const urlObj = new URL(url)
 
     return {
-      host: urlObj.hostname,
-      port: parseInt(urlObj.port) || getDefaultPort(getDatabaseTypeFromUrl(url)),
       database: urlObj.pathname.slice(1),
-      user: urlObj.username,
+      host: urlObj.hostname,
       password: urlObj.password,
+      port: Number.parseInt(urlObj.port, 10) || getDefaultPort(getDatabaseTypeFromUrl(url)),
       ssl: urlObj.searchParams.get('ssl') === 'true' || urlObj.searchParams.get('sslmode') === 'require',
+      user: urlObj.username,
     }
-  } catch (error) {
+  } catch {
     throw new Error(`Invalid database URL format: ${url}`)
   }
 }
 
 function getDefaultPort(dbType: DatabaseType): number {
   switch (dbType) {
-    case 'postgresql':
-      return 5432
-    case 'mysql':
-      return 3306
-    case 'mssql':
+    case 'mssql': {
       return 1433
-    default:
+    }
+
+    case 'mysql': {
+      return 3306
+    }
+
+    case 'postgresql': {
+      return 5432
+    }
+
+    default: {
       throw new Error(`Unknown database type: ${dbType}`)
+    }
   }
 }
 

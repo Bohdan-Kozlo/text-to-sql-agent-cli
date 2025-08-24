@@ -1,5 +1,6 @@
 import {Client} from 'pg'
-import {DbAdapter, DbConnectionConfig, TableInfo, QueryResult, TableColumn} from '../types.js'
+
+import {DbAdapter, DbConnectionConfig, QueryResult, TableColumn, TableInfo} from '../types.js'
 
 export class PostgresAdapter implements DbAdapter {
   private client: Client | null = null
@@ -8,12 +9,12 @@ export class PostgresAdapter implements DbAdapter {
   async connect(config: DbConnectionConfig): Promise<void> {
     try {
       this.client = new Client({
-        host: config.host,
-        port: config.port,
         database: config.database,
-        user: config.user,
+        host: config.host,
         password: config.password,
+        port: config.port,
         ssl: config.ssl ? {rejectUnauthorized: false} : false,
+        user: config.user,
       })
 
       await this.client.connect()
@@ -32,10 +33,6 @@ export class PostgresAdapter implements DbAdapter {
     }
   }
 
-  isConnected(): boolean {
-    return this.connected && this.client !== null
-  }
-
   async getSchema(): Promise<TableInfo[]> {
     if (!this.client) {
       throw new Error('Database not connected')
@@ -50,10 +47,9 @@ export class PostgresAdapter implements DbAdapter {
     `
 
     const tablesResult = await this.client.query(tablesQuery)
-    const tables: TableInfo[] = []
 
-    for (const table of tablesResult.rows) {
-      const tableName = table.table_name
+    const tablePromises = tablesResult.rows.map(async (table) => {
+      const tableName = table.table_name as string
 
       const columnsQuery = `
         SELECT 
@@ -89,28 +85,32 @@ export class PostgresAdapter implements DbAdapter {
         ORDER BY c.ordinal_position
       `
 
-      const columnsResult = await this.client.query(columnsQuery, [tableName])
+      const columnsResult = await this.client!.query(columnsQuery, [tableName])
       const columns: TableColumn[] = columnsResult.rows.map((row) => ({
-        name: row.column_name,
-        type: row.data_type,
-        nullable: row.is_nullable === 'YES',
         default: row.column_default || undefined,
-        primaryKey: row.is_primary_key,
         foreignKey: row.foreign_table_name
           ? {
-              table: row.foreign_table_name,
               column: row.foreign_column_name,
+              table: row.foreign_table_name,
             }
           : undefined,
+        name: row.column_name,
+        nullable: row.is_nullable === 'YES',
+        primaryKey: row.is_primary_key,
+        type: row.data_type,
       }))
 
-      tables.push({
-        name: tableName,
+      return {
         columns,
-      })
-    }
+        name: tableName,
+      }
+    })
 
-    return tables
+    return Promise.all(tablePromises)
+  }
+
+  isConnected(): boolean {
+    return this.connected && this.client !== null
   }
 
   async runQuery(query: string): Promise<QueryResult> {
@@ -121,9 +121,9 @@ export class PostgresAdapter implements DbAdapter {
     try {
       const result = await this.client.query(query)
       return {
-        rows: result.rows,
+        fields: result.fields as unknown as Record<string, unknown>[],
         rowCount: result.rowCount || 0,
-        fields: result.fields,
+        rows: result.rows as Record<string, unknown>[],
       }
     } catch (error) {
       throw new Error(`Query execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`)

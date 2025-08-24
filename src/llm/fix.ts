@@ -10,7 +10,7 @@ export async function explainAndFixSql(
   model: ChatGoogleGenerativeAI,
   sql: string,
   errorMessage: string,
-  dialect: 'postgresql' | 'mysql' | 'mssql',
+  dialect: 'mssql' | 'mysql' | 'postgresql',
 ): Promise<FixResult> {
   const outputSchema = z
     .object({
@@ -25,6 +25,6 @@ export async function explainAndFixSql(
   const structured = model.withStructuredOutput(outputSchema, {name: 'SqlFix'})
 
   const prompt = `Dialect: ${dialect}\nOriginal SQL:\n${sql}\n\nError: ${errorMessage}\nReturn explanation and a fixedSql if you can correct it safely.`
-  const result: any = await structured.invoke([{role: 'user', content: prompt}])
+  const result = await structured.invoke([{content: prompt, role: 'user'}]) as {explanation: string; fixedSql?: string}
   return {explanation: result.explanation, fixedSql: result.fixedSql}
 }
