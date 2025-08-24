@@ -11,7 +11,7 @@ export default class Connect extends Command {
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --url "postgresql://user:password@localhost:5432/mydb"',
   ]
-static override flags = {
+  static override flags = {
     url: Flags.string({char: 'u', description: 'Database URL'}),
   }
 
@@ -55,10 +55,10 @@ static override flags = {
       config.DATABASE_URL = databaseUrl.trim()
       saveConfig(config)
 
-      this.log('✅ Database URL saved successfully!')
+      this.log('Database URL saved successfully!')
       this.log(`Database URL: ${databaseUrl}`)
     } catch {
-      this.error('❌ Failed to save database URL', {exit: 1})
+      this.error('Failed to save database URL', {exit: 1})
     }
   }
 }

@@ -2,7 +2,7 @@ import {Command, Flags} from '@oclif/core'
 import pkg from 'enquirer'
 
 import {connectToDatabase, getDatabaseTypeFromUrl} from '../database/index.js'
-import {generateAnswerWithCount} from '../llm/answer.js'
+import {generateAnswer} from '../llm/answer.js'
 import {getGeminiModel} from '../llm/client.js'
 import {generateSql} from '../llm/sql.js'
 import {validateSql} from '../llm/validate.js'
@@ -93,7 +93,13 @@ export default class Ask extends Command {
       this.log(formatTable(result.rows.slice(0, 20)))
 
       this.log('\nGenerating final answer...')
-      const answer = await generateAnswerWithCount(model, question, sql, result.rows, result.rowCount)
+      const answer = await generateAnswer({
+        model,
+        question,
+        rowCount: result.rowCount,
+        rows: result.rows,
+        sql,
+      })
 
       this.log('\nAnswer:')
       this.log(answer)

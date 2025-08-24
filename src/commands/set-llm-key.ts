@@ -55,9 +55,9 @@ static override flags = {
       config.GEMINI_API_KEY = apiKey.trim()
       saveConfig(config)
 
-      this.log('✅ Gemini API key saved successfully!')
+      this.log('Gemini API key saved successfully!')
     } catch {
-      this.error('❌ Failed to save API key', {exit: 1})
+      this.error('Failed to save API key', {exit: 1})
     }
   }
 }
