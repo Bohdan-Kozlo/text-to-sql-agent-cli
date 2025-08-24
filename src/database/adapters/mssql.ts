@@ -1,22 +1,23 @@
 import sql from 'mssql'
-import {DbAdapter, DbConnectionConfig, TableInfo, QueryResult, TableColumn} from '../types.js'
+
+import {DbAdapter, DbConnectionConfig, QueryResult, TableColumn, TableInfo} from '../types.js'
 
 export class MSSQLAdapter implements DbAdapter {
-  private pool: sql.ConnectionPool | null = null
   private connected = false
+  private pool: null | sql.ConnectionPool = null
 
   async connect(config: DbConnectionConfig): Promise<void> {
     try {
       const sqlConfig: sql.config = {
-        server: config.host,
-        port: config.port,
         database: config.database,
-        user: config.user,
-        password: config.password,
         options: {
           encrypt: config.ssl || false,
           trustServerCertificate: true,
         },
+        password: config.password,
+        port: config.port,
+        server: config.host,
+        user: config.user,
       }
 
       this.pool = new sql.ConnectionPool(sqlConfig)
@@ -36,10 +37,6 @@ export class MSSQLAdapter implements DbAdapter {
     }
   }
 
-  isConnected(): boolean {
-    return this.connected && this.pool !== null
-  }
-
   async getSchema(): Promise<TableInfo[]> {
     if (!this.pool) {
       throw new Error('Database not connected')
@@ -53,10 +50,9 @@ export class MSSQLAdapter implements DbAdapter {
     `
 
     const tablesResult = await this.pool.request().query(tablesQuery)
-    const tables: TableInfo[] = []
 
-    for (const table of tablesResult.recordset) {
-      const tableName = table.TABLE_NAME
+    const tablePromises = tablesResult.recordset.map(async (table) => {
+      const tableName = table.TABLE_NAME as string
 
       const columnsQuery = `
         SELECT 
@@ -92,31 +88,35 @@ export class MSSQLAdapter implements DbAdapter {
         ORDER BY c.ORDINAL_POSITION
       `
 
-      const request = this.pool.request()
+      const request = this.pool!.request()
       request.input('tableName', sql.VarChar, tableName)
       const columnsResult = await request.query(columnsQuery)
 
       const columns: TableColumn[] = columnsResult.recordset.map((row) => ({
-        name: row.COLUMN_NAME,
-        type: row.DATA_TYPE,
-        nullable: row.IS_NULLABLE === 'YES',
         default: row.COLUMN_DEFAULT || undefined,
-        primaryKey: row.IS_PRIMARY_KEY === 1,
         foreignKey: row.REFERENCED_TABLE_NAME
           ? {
-              table: row.REFERENCED_TABLE_NAME,
               column: row.REFERENCED_COLUMN_NAME,
+              table: row.REFERENCED_TABLE_NAME,
             }
           : undefined,
+        name: row.COLUMN_NAME,
+        nullable: row.IS_NULLABLE === 'YES',
+        primaryKey: row.IS_PRIMARY_KEY === 1,
+        type: row.DATA_TYPE,
       }))
 
-      tables.push({
-        name: tableName,
+      return {
         columns,
-      })
-    }
+        name: tableName,
+      }
+    })
 
-    return tables
+    return Promise.all(tablePromises)
+  }
+
+  isConnected(): boolean {
+    return this.connected && this.pool !== null
   }
 
   async runQuery(query: string): Promise<QueryResult> {
@@ -127,9 +127,9 @@ export class MSSQLAdapter implements DbAdapter {
     try {
       const result = await this.pool.request().query(query)
       return {
-        rows: result.recordset,
-        rowCount: result.rowsAffected[0] || result.recordset.length,
         fields: Object.keys(result.recordset[0] || {}).map((name) => ({name})),
+        rowCount: result.recordset.length > 0 ? (result.rowsAffected[0] > 0 ? result.rowsAffected[0] : result.recordset.length) : 0,
+        rows: result.recordset,
       }
     } catch (error) {
       throw new Error(`Query execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`)

@@ -1,41 +1,41 @@
 export interface TableColumn {
-  name: string
-  type: string
-  nullable: boolean
   default?: string
-  primaryKey?: boolean
   foreignKey?: {
-    table: string
     column: string
+    table: string
   }
+  name: string
+  nullable: boolean
+  primaryKey?: boolean
+  type: string
 }
 
 export interface TableInfo {
-  name: string
   columns: TableColumn[]
+  name: string
 }
 
 export interface QueryResult {
-  rows: any[]
+  fields?: Record<string, unknown>[]
   rowCount: number
-  fields?: any[]
+  rows: Record<string, unknown>[]
 }
 
 export interface DbConnectionConfig {
-  host: string
-  port: number
   database: string
-  user: string
+  host: string
   password: string
+  port: number
   ssl?: boolean
+  user: string
 }
 
-export type DatabaseType = 'postgresql' | 'mysql' | 'mssql'
+export type DatabaseType = 'mssql' | 'mysql' | 'postgresql'
 
 export interface DbAdapter {
   connect(config: DbConnectionConfig): Promise<void>
   disconnect(): Promise<void>
   getSchema(): Promise<TableInfo[]>
-  runQuery(query: string): Promise<QueryResult>
   isConnected(): boolean
+  runQuery(query: string): Promise<QueryResult>
 }

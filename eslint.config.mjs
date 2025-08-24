@@ -12,8 +12,9 @@ export default [
   prettier,
   {
     rules: {
-    'import/no-unresolved': 'off',
-    'import/namespace': 'off',
-    'import/no-duplicates': 'off',
+      'import/namespace': 'off',
+      'import/no-duplicates': 'off',
+      'import/no-unresolved': 'off',
+    },
   },
 ]

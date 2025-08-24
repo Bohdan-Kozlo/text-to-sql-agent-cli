@@ -1,7 +1,9 @@
 import {Command, Flags} from '@oclif/core'
 import pkg from 'enquirer'
-const {prompt} = pkg
+
 import {loadConfig, saveConfig} from '../utils/config.js'
+
+const {prompt} = pkg
 
 export default class Connect extends Command {
   static override description = 'Set your database connection URL'
@@ -9,7 +11,6 @@ export default class Connect extends Command {
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --url "postgresql://user:password@localhost:5432/mydb"',
   ]
-
   static override flags = {
     url: Flags.string({char: 'u', description: 'Database URL'}),
   }
@@ -25,17 +26,19 @@ export default class Connect extends Command {
       }
 
       const response = await prompt<{url: string}>({
-        type: 'input',
-        name: 'url',
-        message: 'Enter your database URL:',
         initial: currentConfig.DATABASE_URL || '',
-        validate: (value: string) => {
+        message: 'Enter your database URL:',
+        name: 'url',
+        type: 'input',
+        validate(value: string) {
           if (!value.trim()) {
             return 'Database URL cannot be empty'
           }
+
           if (!value.includes('://')) {
             return 'Please enter a valid database URL (e.g., postgresql://user:password@localhost:5432/mydb)'
           }
+
           return true
         },
       })
@@ -52,10 +55,10 @@ export default class Connect extends Command {
       config.DATABASE_URL = databaseUrl.trim()
       saveConfig(config)
 
-      this.log('✅ Database URL saved successfully!')
+      this.log('Database URL saved successfully!')
       this.log(`Database URL: ${databaseUrl}`)
-    } catch (error) {
-      this.error('❌ Failed to save database URL', {exit: 1})
+    } catch {
+      this.error('Failed to save database URL', {exit: 1})
     }
   }
 }

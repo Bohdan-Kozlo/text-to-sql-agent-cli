@@ -1,7 +1,9 @@
 import {Command, Flags} from '@oclif/core'
-import {getDbUrl} from '../utils/config.js'
-import {connectToDatabase} from '../database/index.js'
+
 import type {TableInfo} from '../database/types.js'
+
+import {connectToDatabase} from '../database/index.js'
+import {getDbUrl} from '../utils/config.js'
 
 export default class Schema extends Command {
   static override description = 'Print database schema (tables and columns) and list relationships between tables.'
@@ -41,32 +43,17 @@ export default class Schema extends Command {
     }
   }
 
-  private printSchema(schema: TableInfo[]): void {
-    for (const table of schema) {
-      this.log(`\nTable: ${table.name}`)
-      for (const col of table.columns) {
-        const parts: string[] = []
-        parts.push(`${col.name}`)
-        parts.push(`${col.type}`)
-        if (col.primaryKey) parts.push('PK')
-        if (!col.nullable) parts.push('NOT NULL')
-        if (col.default !== undefined) parts.push(`DEFAULT ${col.default}`)
-        if (col.foreignKey) parts.push(`FK -> ${col.foreignKey.table}.${col.foreignKey.column}`)
-        this.log(`  - ${parts.join(' | ')}`)
-      }
-    }
-  }
-
   private printRelationships(schema: TableInfo[]): void {
-    const rels: {fromTable: string; fromCol: string; toTable: string; toCol: string}[] = []
+    const rels: {fromCol: string; fromTable: string; toCol: string; toTable: string}[] = []
+
     for (const table of schema) {
       for (const col of table.columns) {
         if (col.foreignKey) {
           rels.push({
-            fromTable: table.name,
             fromCol: col.name,
-            toTable: col.foreignKey.table,
+            fromTable: table.name,
             toCol: col.foreignKey.column,
+            toTable: col.foreignKey.table,
           })
         }
       }
@@ -80,6 +67,26 @@ export default class Schema extends Command {
     this.log('\nRelationships:')
     for (const r of rels) {
       this.log(` - ${r.fromTable}.${r.fromCol} -> ${r.toTable}.${r.toCol}`)
+    }
+  }
+
+  private printSchema(schema: TableInfo[]): void {
+    for (const table of schema) {
+      this.log(`\nTable: ${table.name}`)
+      for (const col of table.columns) {
+        const parts: string[] = []
+        parts.push(`${col.name}`, `${col.type}`)
+
+        if (col.primaryKey) parts.push('PK')
+
+        if (!col.nullable) parts.push('NOT NULL')
+
+        if (col.default !== undefined) parts.push(`DEFAULT ${col.default}`)
+
+        if (col.foreignKey) parts.push(`FK -> ${col.foreignKey.table}.${col.foreignKey.column}`)
+
+        this.log(`  - ${parts.join(' | ')}`)
+      }
     }
   }
 }

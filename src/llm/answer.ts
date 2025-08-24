@@ -1,13 +1,15 @@
 import {ChatGoogleGenerativeAI} from '@langchain/google-genai'
 import {z} from 'zod'
 
-export async function generateAnswer(
-  model: ChatGoogleGenerativeAI,
-  question: string,
-  sql: string,
-  rows: any[],
-  rowCount: number,
-): Promise<string> {
+export interface GenerateAnswerOptions {
+  model: ChatGoogleGenerativeAI
+  question: string
+  rowCount: number
+  rows: Record<string, unknown>[]
+  sql: string
+}
+
+export async function generateAnswer({model, question, rowCount, rows, sql}: GenerateAnswerOptions): Promise<string> {
   const sampleRows = rows.slice(0, 20)
   const tablePreview = JSON.stringify(sampleRows, null, 2)
 
@@ -20,6 +22,6 @@ export async function generateAnswer(
   const structured = model.withStructuredOutput(outputSchema, {name: 'AnswerSummary'})
 
   const prompt = `User question: ${question}\nRows returned: ${rowCount}\nSQL used:\n${sql}\n\nSample rows JSON (first ${sampleRows.length}):\n${tablePreview}\n\nProvide answer.`
-  const result: any = await structured.invoke([{role: 'user', content: prompt}])
+  const result = (await structured.invoke([{content: prompt, role: 'user'}])) as {answer: string; highlights?: string[]}
   return result.answer + (result.highlights ? '\n' + result.highlights.map((h: string) => '- ' + h).join('\n') : '')
 }

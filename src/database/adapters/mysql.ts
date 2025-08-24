@@ -1,19 +1,30 @@
 import mysql from 'mysql'
-import {DbAdapter, DbConnectionConfig, TableInfo, QueryResult, TableColumn} from '../types.js'
+
+import {DbAdapter, DbConnectionConfig, QueryResult, TableColumn, TableInfo} from '../types.js'
+
+interface MySQLColumnRow {
+  COLUMN_DEFAULT?: string
+  COLUMN_KEY: string
+  COLUMN_NAME: string
+  DATA_TYPE: string
+  IS_NULLABLE: string
+  REFERENCED_COLUMN_NAME?: string
+  REFERENCED_TABLE_NAME?: string
+}
 
 export class MySQLAdapter implements DbAdapter {
-  private connection: mysql.Connection | null = null
   private connected = false
+  private connection: mysql.Connection | null = null
 
   async connect(config: DbConnectionConfig): Promise<void> {
     return new Promise((resolve, reject) => {
       this.connection = mysql.createConnection({
-        host: config.host,
-        port: config.port,
         database: config.database,
-        user: config.user,
+        host: config.host,
         password: config.password,
+        port: config.port,
         ssl: config.ssl ? {rejectUnauthorized: false} : undefined,
+        user: config.user,
       })
 
       this.connection.connect((error) => {
@@ -42,10 +53,6 @@ export class MySQLAdapter implements DbAdapter {
     })
   }
 
-  isConnected(): boolean {
-    return this.connected && this.connection !== null
-  }
-
   async getSchema(): Promise<TableInfo[]> {
     if (!this.connection) {
       throw new Error('Database not connected')
@@ -60,10 +67,9 @@ export class MySQLAdapter implements DbAdapter {
     `
 
     const tables = await this.query(tablesQuery)
-    const result: TableInfo[] = []
 
-    for (const table of tables.rows) {
-      const tableName = table.TABLE_NAME
+    const tablePromises = tables.rows.map(async (table) => {
+      const tableName = table.TABLE_NAME as string
 
       const columnsQuery = `
         SELECT 
@@ -86,34 +92,41 @@ export class MySQLAdapter implements DbAdapter {
       `
 
       const columnsResult = await this.query(columnsQuery, [tableName])
-      const columns: TableColumn[] = columnsResult.rows.map((row) => ({
-        name: row.COLUMN_NAME,
-        type: row.DATA_TYPE,
-        nullable: row.IS_NULLABLE === 'YES',
-        default: row.COLUMN_DEFAULT || undefined,
-        primaryKey: row.COLUMN_KEY === 'PRI',
-        foreignKey: row.REFERENCED_TABLE_NAME
-          ? {
-              table: row.REFERENCED_TABLE_NAME,
-              column: row.REFERENCED_COLUMN_NAME,
-            }
-          : undefined,
-      }))
-
-      result.push({
-        name: tableName,
-        columns,
+      const columns: TableColumn[] = columnsResult.rows.map((row) => {
+        const mysqlRow = row as unknown as MySQLColumnRow
+        return {
+          default: mysqlRow.COLUMN_DEFAULT || undefined,
+          foreignKey: mysqlRow.REFERENCED_TABLE_NAME
+            ? {
+                column: String(mysqlRow.REFERENCED_COLUMN_NAME),
+                table: String(mysqlRow.REFERENCED_TABLE_NAME),
+              }
+            : undefined,
+          name: String(mysqlRow.COLUMN_NAME),
+          nullable: mysqlRow.IS_NULLABLE === 'YES',
+          primaryKey: mysqlRow.COLUMN_KEY === 'PRI',
+          type: String(mysqlRow.DATA_TYPE),
+        }
       })
-    }
 
-    return result
+      return {
+        columns,
+        name: String(tableName),
+      }
+    })
+
+    return Promise.all(tablePromises)
+  }
+
+  isConnected(): boolean {
+    return this.connected && this.connection !== null
   }
 
   async runQuery(query: string): Promise<QueryResult> {
     return this.query(query)
   }
 
-  private async query(sql: string, params?: any[]): Promise<QueryResult> {
+  private async query(sql: string, params?: string[]): Promise<QueryResult> {
     if (!this.connection) {
       throw new Error('Database not connected')
     }
@@ -124,9 +137,9 @@ export class MySQLAdapter implements DbAdapter {
           reject(new Error(`Query execution failed: ${error.message}`))
         } else {
           resolve({
-            rows: Array.isArray(results) ? results : [results],
+            fields: fields as Record<string, unknown>[] | undefined,
             rowCount: Array.isArray(results) ? results.length : 1,
-            fields,
+            rows: Array.isArray(results) ? results as Record<string, unknown>[] : [results as Record<string, unknown>],
           })
         }
       })
