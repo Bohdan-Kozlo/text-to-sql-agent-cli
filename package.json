@@ -6,7 +6,6 @@
   "bin": {
     "text-to-sql-agent-cli": "./bin/run.js"
   },
-  "bugs": "https://github.com/My Personal Projects/text-to-sql-agent-cli/issues",
   "dependencies": {
     "@langchain/core": "^0.3.66",
     "@langchain/google-genai": "^0.2.16",
@@ -19,7 +18,8 @@
     "enquirer": "^2.4.1",
     "mssql": "^11.0.1",
     "mysql": "^2.18.1",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/compat": "^1",

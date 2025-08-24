@@ -6,6 +6,7 @@ import {connectToDatabase, getDatabaseTypeFromUrl} from '../database/index.js'
 import {getGeminiModel} from '../llm/client.js'
 import {generateSql} from '../llm/sql.js'
 import {generateAnswer} from '../llm/answer.js'
+import {validateSql} from '../llm/validate.js'
 import {formatTable} from '../utils/table.js'
 
 export default class Ask extends Command {
@@ -66,6 +67,17 @@ export default class Ask extends Command {
       }
       this.log('SQL generated:')
       this.log(sql)
+
+      this.log('\nValidating SQL...')
+      const validation = await validateSql(model, question, sql, dbType)
+      if (!validation.valid) {
+        this.error(`Generated SQL failed validation: ${validation.reason}`)
+      }
+      if (validation.safeSql && validation.safeSql !== sql) {
+        this.log('Validator adjusted SQL:')
+        sql = validation.safeSql
+        this.log(sql)
+      }
 
       const start = Date.now()
       const result = await adapter.runQuery(sql)

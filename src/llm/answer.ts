@@ -1,4 +1,5 @@
 import {ChatGoogleGenerativeAI} from '@langchain/google-genai'
+import {z} from 'zod'
 
 export async function generateAnswer(
   model: ChatGoogleGenerativeAI,
@@ -9,7 +10,16 @@ export async function generateAnswer(
 ): Promise<string> {
   const sampleRows = rows.slice(0, 20)
   const tablePreview = JSON.stringify(sampleRows, null, 2)
-  const prompt = `User question: ${question}\n\nSQL used to retrieve data:\n${sql}\n\nFirst ${sampleRows.length} rows (JSON):\n${tablePreview}\n\nProvide a concise, user-friendly answer. If the result looks like an aggregation, summarize the key numbers. If it's tabular, describe the highlights.`
-  const resp = await model.invoke([{role: 'user', content: prompt}])
-  return resp?.content?.toString?.() ?? ''
+
+  const outputSchema = z
+    .object({
+      answer: z.string().describe('Concise natural language answer to user question.'),
+    })
+    .describe('Final answer summary')
+
+  const structured = model.withStructuredOutput(outputSchema, {name: 'AnswerSummary'})
+
+  const prompt = `User question: ${question}\nRows returned: ${rowCount}\nSQL used:\n${sql}\n\nSample rows JSON (first ${sampleRows.length}):\n${tablePreview}\n\nProvide answer.`
+  const result: any = await structured.invoke([{role: 'user', content: prompt}])
+  return result.answer + (result.highlights ? '\n' + result.highlights.map((h: string) => '- ' + h).join('\n') : '')
 }

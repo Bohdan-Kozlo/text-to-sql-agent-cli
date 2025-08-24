@@ -1,5 +1,6 @@
 import {ChatGoogleGenerativeAI} from '@langchain/google-genai'
 import {TableInfo} from '../database/types.js'
+import {z} from 'zod'
 
 export async function generateSql(
   model: ChatGoogleGenerativeAI,
@@ -16,8 +17,21 @@ export async function generateSql(
           .join('\n'),
     )
     .join('\n')
-  const prompt = `You are an expert SQL generator. Produce a single ${dialect} SQL query answering the user's question based ONLY on the provided schema. Do not include explanations, only the SQL.\n\nSchema:\n${schemaText}\n\nQuestion: ${question}`
-  const resp = await model.invoke([{role: 'user', content: prompt}])
-  const text = resp?.content?.toString?.() ?? ''
-  return text.replace(/```[a-zA-Z]*\n?|```/g, '').trim()
+
+  const outputSchema = z
+    .object({
+      sql: z
+        .string()
+        .describe('A single valid SQL statement for the target dialect answering the user question. No comments.'),
+    })
+    .describe('SQL generation result')
+
+  const structured = model.withStructuredOutput(outputSchema, {
+    name: 'SqlGeneration',
+  })
+
+  const instructions = `Generate exactly one ${dialect} SQL SELECT statement (read-only) answering the question. Use only provided schema. No data modification. Avoid guessing nonexistent tables/columns.`
+  const prompt = `${instructions}\n\nSchema:\n${schemaText}\n\nQuestion: ${question}`
+  const result: any = await structured.invoke([{role: 'user', content: prompt}])
+  return result.sql.trim()
 }
